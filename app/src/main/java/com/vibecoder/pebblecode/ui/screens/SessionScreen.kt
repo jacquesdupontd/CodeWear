@@ -47,89 +47,64 @@ fun SessionScreen(
     hasPrompt: Boolean,
     promptText: String,
     bridgeHistory: List<String> = emptyList(),
-    onLaunchVoice: () -> Unit
+    onLaunchVoice: () -> Unit,
+    onAcceptSuggestion: () -> Unit = {}
 ) {
     val focusRequester = remember { FocusRequester() }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
     // =======================================================
-    // HISTORY: bridge sends archived history on join,
-    // then we keep accumulating locally
+    // HISTORY: accumulate ALL updates in real-time
+    // Every summary/tool change appends to the scrollable log
     // =======================================================
-    val savedHistory = remember { mutableStateListOf<String>() }
+    val historyLines = remember { mutableStateListOf<String>() }
     var bridgeHistoryLoaded by remember { mutableStateOf(false) }
-    var lastFullSummary by remember { mutableStateOf("") }
-    var lastArchivedHash by remember { mutableIntStateOf(0) }
+    var lastSummaryHash by remember { mutableIntStateOf(0) }
     var lastUserCmd by remember { mutableStateOf("") }
-    var wasWorking by remember { mutableStateOf(false) }
 
     // Load bridge history once on join
     LaunchedEffect(bridgeHistory) {
         if (bridgeHistory.isNotEmpty() && !bridgeHistoryLoaded) {
-            savedHistory.clear()
+            historyLines.clear()
             for (line in bridgeHistory) {
                 if (line == "---SEP---") {
-                    savedHistory.add("\u2500") // separator marker
+                    historyLines.add("\u2500")
                 } else {
-                    savedHistory.add(line)
+                    historyLines.add(line)
                 }
             }
             bridgeHistoryLoaded = true
         }
     }
 
-    // Archive helper: save current summary to history if not already archived
-    fun archiveSummary() {
-        if (lastFullSummary.isNotEmpty() && lastFullSummary.hashCode() != lastArchivedHash) {
-            val oldLines = lastFullSummary.split("\n").filter { it.isNotBlank() }
-            savedHistory.addAll(oldLines)
-            savedHistory.add("\u2500") // separator
-            while (savedHistory.size > 300) savedHistory.removeAt(0)
-            lastArchivedHash = lastFullSummary.hashCode()
+    // Accumulate summary changes in real-time
+    LaunchedEffect(cleanData.summary) {
+        val hash = cleanData.summary.hashCode()
+        if (cleanData.summary.isNotEmpty() && hash != lastSummaryHash) {
+            val newLines = cleanData.summary.split("\n").filter { it.isNotBlank() }
+            historyLines.addAll(newLines)
+            while (historyLines.size > 500) historyLines.removeAt(0)
+            lastSummaryHash = hash
         }
     }
 
-    // Trigger 1: user command changed = new dictation sent
+    // Add separator when user sends new command
     LaunchedEffect(cleanData.userCmd) {
         if (cleanData.userCmd.isNotEmpty() && cleanData.userCmd != lastUserCmd) {
-            archiveSummary()
+            if (historyLines.isNotEmpty()) {
+                historyLines.add("\u2500") // separator
+            }
             lastUserCmd = cleanData.userCmd
         }
     }
 
-    // Trigger 2: Claude finished working (idle after working)
-    LaunchedEffect(cleanData.isIdle, cleanData.status) {
-        if (cleanData.isIdle && wasWorking) {
-            // Small delay to let final summary arrive
-            delay(1500)
-            archiveSummary()
-        }
-        wasWorking = !cleanData.isIdle && !cleanData.isQuestion
+    // Skip trailing separator (avoids double orange bar on launch)
+    val reversedLines = remember(historyLines.size) {
+        val list = historyLines.toList()
+        val trimmed = if (list.lastOrNull() == "\u2500") list.dropLast(1) else list
+        trimmed.asReversed()
     }
-
-    // Track current summary
-    LaunchedEffect(cleanData.summary) {
-        if (cleanData.summary.isNotEmpty()) {
-            lastFullSummary = cleanData.summary
-        }
-    }
-
-    val currentLines = remember(cleanData.summary) {
-        if (cleanData.summary.isEmpty()) emptyList()
-        else cleanData.summary.split("\n").filter { it.isNotBlank() }
-    }
-
-    // Display: archived history + current turn (skip current if it was just archived)
-    val displayCurrentLines = remember(currentLines, lastArchivedHash) {
-        if (lastFullSummary.hashCode() == lastArchivedHash) emptyList()
-        else currentLines
-    }
-
-    val allLines = remember(savedHistory.size, displayCurrentLines) {
-        savedHistory.toList() + displayCurrentLines
-    }
-    val reversedLines = remember(allLines) { allLines.asReversed() }
 
     // Auto-scroll to bottom (index 0 with reverseLayout)
     LaunchedEffect(cleanData.summary, cleanData.lastTool) {
@@ -154,10 +129,8 @@ fun SessionScreen(
         && !cleanData.status.contains("error", ignoreCase = true)
 
     var lastWorkingStatus by remember { mutableStateOf("") }
-    var lastActiveTask by remember { mutableStateOf("") }
     LaunchedEffect(cleanData.status, cleanData.activeTask) {
         if (isWorking) lastWorkingStatus = cleanData.status
-        if (cleanData.activeTask.isNotEmpty()) lastActiveTask = cleanData.activeTask
     }
 
     var stableIdle by remember { mutableStateOf(true) }
@@ -169,7 +142,6 @@ fun SessionScreen(
             stableIdle = true
             recentlyWorking = false
             lastWorkingStatus = ""
-            lastActiveTask = ""
         } else if (!cleanData.isQuestion) {
             stableIdle = false
             recentlyWorking = false
@@ -215,10 +187,8 @@ fun SessionScreen(
     )
 
     // =======================================================
-    // ORANGE COMMAND LINE (fixed bar)
-    // Working → activeTask | Idle → diff+tool (cleaned)
+    // COMMAND LINE (fixed bar) — always shows lastTool first
     // =======================================================
-    val displayTask = cleanData.activeTask.ifEmpty { if (showWorking) lastActiveTask else "" }
 
     // Strip literal "..." and "…" from bridge text
     fun cleanDots(s: String) = s.trim()
@@ -227,14 +197,15 @@ fun SessionScreen(
         .trim()
 
     val commandLineText = when {
-        showWorking && displayTask.isNotEmpty() ->
-            "\u25B8 ${cleanDots(displayTask)}"
-        cleanData.diff.isNotEmpty() && cleanData.lastTool.isNotEmpty() ->
+        // Tool always wins (shows "$ gradle build", "read Theme.kt", etc.)
+        cleanData.lastTool.isNotEmpty() && cleanData.diff.isNotEmpty() ->
             "\u25C7 ${cleanDots(cleanData.lastTool)}: ${cleanDots(cleanData.diff)}"
-        cleanData.diff.isNotEmpty() ->
-            "\u25C7 ${cleanDots(cleanData.diff)}"
         cleanData.lastTool.isNotEmpty() ->
             "\u25C7 ${cleanDots(cleanData.lastTool)}"
+        cleanData.diff.isNotEmpty() ->
+            "\u25C7 ${cleanDots(cleanData.diff)}"
+        cleanData.activeTask.isNotEmpty() ->
+            "\u25B8 ${cleanDots(cleanData.activeTask)}"
         else -> ""
     }
 
@@ -297,7 +268,7 @@ fun SessionScreen(
                                 modifier = Modifier
                                     .fillMaxWidth(0.7f)
                                     .height(2.dp)
-                                    .background(PebbleColors.ThinkingAmber.copy(alpha = 0.5f))
+                                    .background(PebbleColors.Cyan.copy(alpha = 0.4f))
                             )
                         }
                     } else {
@@ -321,11 +292,11 @@ fun SessionScreen(
                     .background(PebbleColors.Background),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // --- Orange command line: basicMarquee (no "...", no empty space) ---
+                // --- Command line: theme accent color, basicMarquee ---
                 if (commandLineText.isNotEmpty()) {
                     Text(
                         text = commandLineText,
-                        color = PebbleColors.ThinkingAmber,
+                        color = PebbleColors.Cyan,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.SemiBold,
@@ -367,7 +338,7 @@ fun SessionScreen(
                     )
                 }
 
-                // --- Suggestion/prompt: 12sp, basicMarquee ---
+                // --- Suggestion/prompt: 12sp, basicMarquee, tap to accept ---
                 if (barText != null) {
                     Box(
                         modifier = Modifier
@@ -376,6 +347,7 @@ fun SessionScreen(
                                 PebbleColors.SurfaceBright.copy(alpha = 0.8f),
                                 RoundedCornerShape(8.dp)
                             )
+                            .clickable { onAcceptSuggestion() }
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text(

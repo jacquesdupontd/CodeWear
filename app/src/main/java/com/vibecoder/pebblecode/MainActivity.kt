@@ -223,7 +223,11 @@ class MainActivity : ComponentActivity() {
                     hasPrompt = hasPrompt,
                     promptText = promptText,
                     bridgeHistory = bridgeHistory,
-                    onLaunchVoice = { launchVoice() }
+                    onLaunchVoice = { launchVoice() },
+                    onAcceptSuggestion = {
+                        bridge.accept()
+                        haptics.shortPulse()
+                    }
                 )
             }
 

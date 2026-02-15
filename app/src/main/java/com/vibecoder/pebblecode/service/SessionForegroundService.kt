@@ -72,59 +72,35 @@ class SessionForegroundService : Service() {
     }
 
     private fun observeData() {
-        var prevSummary = ""
-        var prevStatus = ""
-        var prevSuggestion = ""
+        var wasWorking = false
 
         scope.launch {
             bridge.cleanData.collect { data ->
-                // Always update foreground notification text
+                // Update foreground notification text (silent, no vibration)
                 val statusText = data.status.ifEmpty { "Connected" }
                 val mgr = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
                 mgr.notify(NOTIFICATION_ID, buildForegroundNotification(statusText))
 
                 // Only post event notifications when app is in BACKGROUND
-                if (BridgeHolder.isForeground) return@collect
+                if (BridgeHolder.isForeground) {
+                    wasWorking = !data.isIdle && !data.isQuestion
+                    return@collect
+                }
 
-                // Question notification
+                // QUESTION only
                 if (data.isQuestion) {
                     sessionNotification.showQuestion(data.questionText)
                 }
 
-                // Summary changed
-                if (data.summary.isNotEmpty() && data.summary != prevSummary) {
+                // Truly finished: was working, now ready
+                if (wasWorking && data.isReady) {
                     sessionNotification.notifyEvent(
-                        title = "Claude",
-                        text = data.summary.take(80),
-                        prompt = data.userCmd,
-                        task = data.activeTask,
-                        status = data.status
+                        title = "Done",
+                        text = data.summary.take(80).ifEmpty { "Task complete" }
                     )
-                    prevSummary = data.summary
                 }
 
-                // Status changed
-                if (data.status.isNotEmpty() && data.status != prevStatus) {
-                    sessionNotification.notifyEvent(
-                        title = "Status: ${data.status}",
-                        text = data.summary.take(60).ifEmpty { data.activeTask },
-                        prompt = data.userCmd,
-                        task = data.activeTask,
-                        status = data.status
-                    )
-                    prevStatus = data.status
-                }
-
-                // Suggestion
-                if (data.suggestion.isNotEmpty() && data.suggestion != prevSuggestion) {
-                    sessionNotification.notifyEvent(
-                        title = "Suggestion",
-                        text = data.suggestion.take(60),
-                        task = data.activeTask,
-                        status = data.status
-                    )
-                    prevSuggestion = data.suggestion
-                }
+                wasWorking = !data.isIdle && !data.isQuestion
             }
         }
     }

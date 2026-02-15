@@ -47,10 +47,9 @@ class SessionNotification(private val context: Context) {
         )
 
         mgr.createNotificationChannel(
-            NotificationChannel(CHANNEL_EVENT, "Events", NotificationManager.IMPORTANCE_HIGH).apply {
+            NotificationChannel(CHANNEL_EVENT, "Events", NotificationManager.IMPORTANCE_DEFAULT).apply {
                 description = "Claude Code session events"
-                enableVibration(true)
-                lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+                enableVibration(false)
             }
         )
     }
@@ -117,12 +116,10 @@ class SessionNotification(private val context: Context) {
             .setContentText(text)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setContentIntent(pendingIntent())
-            .setFullScreenIntent(pendingIntent(), true) // Wake screen
             .setAutoCancel(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setCategory(NotificationCompat.CATEGORY_MESSAGE)
-            .setDefaults(NotificationCompat.DEFAULT_ALL)
-            .setOnlyAlertOnce(false) // Alert every time
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setCategory(NotificationCompat.CATEGORY_STATUS)
+            .setSilent(true)
             .build()
         val id = EVENT_NOTIFICATION_ID_BASE + (eventCounter++ % MAX_STACKED_EVENTS)
         notificationManager.notify(id, notification)

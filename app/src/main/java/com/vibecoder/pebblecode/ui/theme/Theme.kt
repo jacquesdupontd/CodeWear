@@ -68,7 +68,7 @@ val cyberpunkTheme = AppTheme(
     selectedBorder = Color(0xFFBB44FF),
     question = Color(0xFFFF00FF),
     other = Color(0xFFFFD700),
-    thinkingAmber = Color(0xFFFFAA00),
+    thinkingAmber = Color(0xFFBB44FF),
     readyGlow = Color(0xFFFF44FF),
     questionCyan = Color(0xFFDD44FF),
 )
@@ -89,7 +89,7 @@ val oceanTheme = AppTheme(
     selectedBorder = Color(0xFF00AACC),
     question = Color(0xFF44BBFF),
     other = Color(0xFF88FFCC),
-    thinkingAmber = Color(0xFFFF6644),
+    thinkingAmber = Color(0xFF0088DD),
     readyGlow = Color(0xFF00DDFF),
     questionCyan = Color(0xFF44BBFF),
 )
@@ -110,7 +110,7 @@ val sunsetTheme = AppTheme(
     selectedBorder = Color(0xFFFFAA00),
     question = Color(0xFFFF6633),
     other = Color(0xFFFFEE88),
-    thinkingAmber = Color(0xFFFF4444),
+    thinkingAmber = Color(0xFFFF6633),
     readyGlow = Color(0xFFFFCC00),
     questionCyan = Color(0xFFFF8844),
 )
@@ -131,7 +131,7 @@ val arcticTheme = AppTheme(
     selectedBorder = Color(0xFF88AADD),
     question = Color(0xFFAACCFF),
     other = Color(0xFFEEFFAA),
-    thinkingAmber = Color(0xFFFF8866),
+    thinkingAmber = Color(0xFF88AADD),
     readyGlow = Color(0xFFCCDDFF),
     questionCyan = Color(0xFFAABBFF),
 )
