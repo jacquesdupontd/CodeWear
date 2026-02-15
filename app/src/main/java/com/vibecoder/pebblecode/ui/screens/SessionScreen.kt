@@ -310,7 +310,7 @@ fun SessionScreen(
                                 initialDelayMillis = 1500,
                                 repeatDelayMillis = 2000,
                                 spacing = MarqueeSpacing(0.dp),
-                                velocity = 30.dp
+                                velocity = 90.dp
                             )
                     )
                 }
@@ -333,7 +333,7 @@ fun SessionScreen(
                                 initialDelayMillis = 2000,
                                 repeatDelayMillis = 3000,
                                 spacing = MarqueeSpacing(0.dp),
-                                velocity = 30.dp
+                                velocity = 90.dp
                             )
                     )
                 }
