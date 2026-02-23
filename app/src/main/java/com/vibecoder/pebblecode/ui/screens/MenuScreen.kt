@@ -41,7 +41,8 @@ fun MenuScreen(
     onJoin: (String) -> Unit,
     onCreate: () -> Unit,
     onRefresh: () -> Unit,
-    onSettings: () -> Unit = {}
+    onSettings: () -> Unit = {},
+    onBridge: () -> Unit = {}
 ) {
     val focusRequester = remember { FocusRequester() }
     val listState = rememberScalingLazyListState()
@@ -228,6 +229,27 @@ fun MenuScreen(
                     Text(
                         text = "Themes",
                         color = PebbleColors.Cyan,
+                        fontSize = 13.sp,
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+
+            // Bridge host button
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 3.dp)
+                        .border(1.dp, PebbleColors.ChromeYellow.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
+                        .clickable { onBridge() }
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Bridge",
+                        color = PebbleColors.ChromeYellow,
                         fontSize = 13.sp,
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.SemiBold

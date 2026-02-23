@@ -152,6 +152,15 @@ fun saveThemeKey(context: Context, key: String) {
         .edit().putString("theme", key).apply()
 }
 
+fun loadBridgeHost(context: Context): String =
+    context.getSharedPreferences("pebblecode", Context.MODE_PRIVATE)
+        .getString("bridge_host", "192.168.1.118") ?: "192.168.1.118"
+
+fun saveBridgeHost(context: Context, host: String) {
+    context.getSharedPreferences("pebblecode", Context.MODE_PRIVATE)
+        .edit().putString("bridge_host", host).apply()
+}
+
 /**
  * PebbleColors delegates to _currentTheme so all existing screens
  * keep using PebbleColors.Xxx without any changes.

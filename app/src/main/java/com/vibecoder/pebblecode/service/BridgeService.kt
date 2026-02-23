@@ -11,10 +11,13 @@ import org.json.JSONObject
 class BridgeService {
     companion object {
         private const val TAG = "BridgeService"
-        private const val WS_URL = "ws://192.168.1.118:8080"
+        private const val DEFAULT_HOST = "192.168.1.118"
+        private const val PORT = 8080
         private const val RECONNECT_DELAY = 3000L
+        private const val TAILNET_SUFFIX = ".taildd7ed4.ts.net"
     }
 
+    private var host: String = DEFAULT_HOST
     private var ws: WebSocket? = null
     private val client = OkHttpClient()
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -44,9 +47,32 @@ class BridgeService {
     private val _bridgeHistory = MutableStateFlow<List<String>>(emptyList())
     val bridgeHistory: StateFlow<List<String>> = _bridgeHistory
 
+    fun updateHost(newHost: String) {
+        if (newHost == host) return
+        host = newHost
+        ws?.close(1000, "Host changed")
+        ws = null
+        _connected.value = false
+        connect()
+    }
+
+    private fun buildWsUrl(): String {
+        // IP address (contains digit + dot) = local ws://
+        val isIp = host.any { it.isDigit() } && host.contains('.')
+        if (isIp) return "ws://$host:$PORT"
+
+        // Already full .ts.net = wss://
+        if (host.contains(".ts.net")) return "wss://$host"
+
+        // Just a hostname like "vnc" or "macbook-pro" = auto-complete with tailnet
+        return "wss://$host$TAILNET_SUFFIX"
+    }
+
     fun connect() {
         if (_connected.value) return // already connected
-        val request = Request.Builder().url(WS_URL).build()
+        val url = buildWsUrl()
+        Log.i(TAG, "Connecting to $url")
+        val request = Request.Builder().url(url).build()
         ws = client.newWebSocket(request, object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.i(TAG, "Bridge connected")

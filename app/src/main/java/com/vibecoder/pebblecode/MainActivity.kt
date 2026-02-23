@@ -28,9 +28,12 @@ import com.vibecoder.pebblecode.ui.screens.MenuScreen
 import com.vibecoder.pebblecode.ui.screens.QuestionScreen
 import com.vibecoder.pebblecode.ui.screens.SessionScreen
 import com.vibecoder.pebblecode.ui.screens.SettingsScreen
+import com.vibecoder.pebblecode.ui.screens.BridgeHostScreen
 import com.vibecoder.pebblecode.ui.theme.PebbleCodeTheme
 import com.vibecoder.pebblecode.ui.theme.getThemeByKey
+import com.vibecoder.pebblecode.ui.theme.loadBridgeHost
 import com.vibecoder.pebblecode.ui.theme.loadThemeKey
+import com.vibecoder.pebblecode.ui.theme.saveBridgeHost
 import com.vibecoder.pebblecode.ui.theme.saveThemeKey
 import com.vibecoder.pebblecode.voice.VoiceInput
 import kotlinx.coroutines.launch
@@ -84,6 +87,9 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        // Init bridge host from prefs
+        bridge.updateHost(loadBridgeHost(this))
 
         setContent {
             // Theme state — triggers full recomposition on change
@@ -141,7 +147,7 @@ class MainActivity : ComponentActivity() {
         LaunchedEffect(appState) {
             val current = navController.currentDestination?.route
             when (appState) {
-                AppState.MENU -> if (current != "menu" && current != "settings") {
+                AppState.MENU -> if (current != "menu" && current != "settings" && current != "bridge") {
                     navController.navigate("menu") { popUpTo("menu") { inclusive = true } }
                 }
                 AppState.SESSION -> if (current != "session") {
@@ -191,7 +197,8 @@ class MainActivity : ComponentActivity() {
                     onJoin = { bridge.joinSession(it) },
                     onCreate = { bridge.createSession() },
                     onRefresh = { bridge.requestList() },
-                    onSettings = { navController.navigate("settings") }
+                    onSettings = { navController.navigate("settings") },
+                    onBridge = { navController.navigate("bridge") }
                 )
             }
 
@@ -200,6 +207,17 @@ class MainActivity : ComponentActivity() {
                     currentThemeKey = themeKey,
                     onThemeSelected = { newKey ->
                         onThemeChanged(newKey)
+                        navController.popBackStack()
+                    }
+                )
+            }
+
+            composable("bridge") {
+                BridgeHostScreen(
+                    currentHost = loadBridgeHost(this@MainActivity),
+                    onHostSelected = { newHost ->
+                        saveBridgeHost(this@MainActivity, newHost)
+                        bridge.updateHost(newHost)
                         navController.popBackStack()
                     }
                 )
