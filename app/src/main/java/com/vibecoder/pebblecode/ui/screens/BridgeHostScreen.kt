@@ -38,8 +38,8 @@ data class HostPreset(val host: String, val label: String)
 
 private val presets = listOf(
     HostPreset("192.168.1.118", "Home WiFi"),
-    HostPreset("macbook-pro", "MacBook (Funnel)"),
-    HostPreset("vnc", "VNC Server (Funnel)")
+    HostPreset("macbook-pro", "MacBook"),
+    HostPreset("vnc:8443", "VNC Server")
 )
 
 @Composable

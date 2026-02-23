@@ -12,7 +12,7 @@ class BridgeService {
     companion object {
         private const val TAG = "BridgeService"
         private const val DEFAULT_HOST = "192.168.1.118"
-        private const val PORT = 8080
+        private const val PORT = 9090
         private const val RECONNECT_DELAY = 3000L
         private const val TAILNET_SUFFIX = ".taildd7ed4.ts.net"
     }
@@ -57,14 +57,20 @@ class BridgeService {
     }
 
     private fun buildWsUrl(): String {
+        // Already full .ts.net = wss:// (may include :port)
+        if (host.contains(".ts.net")) return "wss://$host"
+
         // IP address (contains digit + dot) = local ws://
         val isIp = host.any { it.isDigit() } && host.contains('.')
         if (isIp) return "ws://$host:$PORT"
 
-        // Already full .ts.net = wss://
-        if (host.contains(".ts.net")) return "wss://$host"
+        // "hostname:port" = Funnel with custom port
+        if (host.contains(":")) {
+            val parts = host.split(":")
+            return "wss://${parts[0]}$TAILNET_SUFFIX:${parts[1]}"
+        }
 
-        // Just a hostname like "vnc" or "macbook-pro" = auto-complete with tailnet
+        // Just a hostname like "macbook-pro" = auto-complete with tailnet (port 443)
         return "wss://$host$TAILNET_SUFFIX"
     }
 
